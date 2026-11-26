@@ -1,7 +1,7 @@
 import pytest
 
 import factors
-from llm import classify_keyword
+from llm import classify_keyword, pick_flash_model
 
 
 def test_diesel_per_litre_matches_hand_calculation():
@@ -89,3 +89,10 @@ def test_manual_bill_and_validation(client):
 def test_bill_reading_without_key_asks_for_manual_entry(client):
     r = client.post("/api/bills/read", files={"file": ("b.png", b"\x89PNG", "image/png")})
     assert r.status_code == 503
+
+
+def test_pick_flash_model_prefers_newest_stable_flash():
+    names = ["gemini-2.0-flash", "gemini-3.0-flash-preview", "gemini-3.0-flash", "gemini-3.0-flash-lite",
+             "gemini-3.5-pro", "gemini-3.0-flash-image", "text-embedding-004"]
+    assert pick_flash_model(names) == "gemini-3.0-flash"
+    assert pick_flash_model(["gemini-3.5-pro"]) is None

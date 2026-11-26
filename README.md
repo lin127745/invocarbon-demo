@@ -20,7 +20,7 @@
 在 Render 建立 Web Service，來源選這個儲存庫，Language 選 Docker，Instance Type 選 Free。環境變數：
 
 - `GEMINI_API_KEY`：Google AI Studio 金鑰；不設定也能運作
-- `GEMINI_MODEL`（選填）：預設 `gemini-2.5-flash`
+- `GEMINI_MODEL`（選填）：不設定時，自動選這把金鑰能用的最新 flash 模型
 
 ## 本機開發
 

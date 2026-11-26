@@ -58,7 +58,12 @@ def get_dataset(s, dataset_id: str) -> Dataset:
 
 @app.get("/api/config")
 def config():
-    return {"llm": llm.gemini_client() is not None, "model": llm.GEMINI_MODEL, "max_lines": MAX_LINES}
+    client = llm.gemini_client()
+    try:
+        model = llm.model_name(client) if client else None
+    except Exception as e:
+        model = f"無法取得模型清單：{str(e)[:120]}"
+    return {"llm": client is not None, "model": model, "max_lines": MAX_LINES}
 
 
 @app.get("/api/factors")

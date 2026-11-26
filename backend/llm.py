@@ -5,7 +5,8 @@ import re
 
 from factors import CATEGORIES
 
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+_model = os.environ.get("GEMINI_MODEL")  # unset: picked from the models this key can use
+SKIP = ("lite", "image", "tts", "live", "audio", "embedding", "exp")
 REVIEW_THRESHOLD = 0.8
 
 # Order matters: the first matching pattern wins.
@@ -27,6 +28,24 @@ def gemini_client():
         return None
     from google import genai
     return genai.Client(api_key=key)
+
+
+def pick_flash_model(names: list[str]) -> str | None:
+    """Newest general-purpose flash model; stable releases beat previews of the same version."""
+    def key(n):
+        m = re.search(r"gemini-(\d+(?:\.\d+)?)", n)
+        return (float(m.group(1)) if m else 0, "preview" not in n)
+    cands = [n for n in names if "flash" in n and not any(x in n for x in SKIP)]
+    return max(cands, key=key) if cands else None
+
+
+def model_name(client) -> str:
+    global _model
+    if _model is None:
+        names = [m.name.removeprefix("models/") for m in client.models.list()
+                 if "generateContent" in (getattr(m, "supported_actions", None) or [])]
+        _model = pick_flash_model(names) or "gemini-flash-latest"
+    return _model
 
 
 def classify_keyword(item: str) -> tuple[str, float]:
@@ -58,8 +77,9 @@ def classify(items: list[str]) -> tuple[list[tuple[str, float]], str]:
         return [classify_keyword(i) for i in items], "詞庫"
     cats = "\n".join(f"- {k}: {v['label']}" for k, v in CATEGORIES.items())
     listing = "\n".join(f"{n}. {t}" for n, t in enumerate(items))
+    model = model_name(client)
     resp = client.models.generate_content(
-        model=GEMINI_MODEL,
+        model=model,
         contents=PROMPT.format(cats=cats, items=listing),
         config={"response_mime_type": "application/json", "temperature": 0},
     )
@@ -68,7 +88,7 @@ def classify(items: list[str]) -> tuple[list[tuple[str, float]], str]:
         i, cat = int(row["i"]), row["category"]
         if 0 <= i < len(items) and cat in CATEGORIES:
             out[i] = (cat, float(row["confidence"]))
-    return out, f"Gemini（{GEMINI_MODEL}）"
+    return out, f"Gemini（{model}）"
 
 
 BILL_PROMPT = """這是一張台灣電費帳單的照片。請讀出以下欄位，只輸出 JSON：
@@ -82,7 +102,7 @@ def read_bill(image: bytes, mime: str) -> dict:
         raise RuntimeError("未設定 Gemini 金鑰，請手動輸入帳單資料")
     from google.genai import types
     resp = client.models.generate_content(
-        model=GEMINI_MODEL,
+        model=model_name(client),
         contents=[types.Part.from_bytes(data=image, mime_type=mime), BILL_PROMPT],
         config={"response_mime_type": "application/json", "temperature": 0},
     )
