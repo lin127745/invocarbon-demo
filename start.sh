@@ -6,4 +6,4 @@ PGBIN=$(ls -d /usr/lib/postgresql/*/bin | head -1)
 "$PGBIN/pg_ctl" -D "$PGDATA" -o "-k /tmp -c listen_addresses=127.0.0.1" -l /tmp/pg.log -w start
 "$PGBIN/createdb" -h 127.0.0.1 -U app invocarbon
 export DATABASE_URL="postgresql+psycopg://app@127.0.0.1:5432/invocarbon"
-exec uvicorn main:app --host 0.0.0.0 --port 7860
+exec uvicorn main:app --host 0.0.0.0 --port "${PORT:-7860}"
