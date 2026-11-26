@@ -103,7 +103,8 @@ async def upload(file: UploadFile = File(...)):
     try:
         results, method = llm.classify([r["品名"] for r in rows])
     except Exception as e:  # a failed or rate-limited LLM call should not lose the upload
-        results, method = [llm.classify_keyword(r["品名"]) for r in rows], f"詞庫（Gemini 失敗：{type(e).__name__}）"
+        print("Gemini classify failed:", repr(e), flush=True)
+        results, method = [llm.classify_keyword(r["品名"]) for r in rows], f"詞庫（Gemini 失敗：{str(e)[:150]}）"
     with Session.begin() as s:
         ds = Dataset(name=file.filename or "上傳資料", classify_method=method)
         s.add(ds)
@@ -196,7 +197,8 @@ async def read_bill(file: UploadFile = File(...)):
     except RuntimeError as e:
         raise HTTPException(503, str(e))
     except Exception as e:
-        raise HTTPException(502, f"讀圖失敗（{type(e).__name__}），請手動輸入")
+        print("Gemini bill read failed:", repr(e), flush=True)
+        raise HTTPException(502, f"讀圖失敗（{str(e)[:150]}），請手動輸入")
 
 
 @app.get("/api/datasets/{dataset_id}/report")
